@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Controller | Merchant Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: {
+                            950: '#09090b',
+                            900: '#121215',
+                            850: '#18181b',
+                            800: '#27272a',
+                            700: '#3f3f46',
+                            600: '#52525b',
+                            400: '#a1a1aa'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Razorpay Standard Checkout SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: 'tnum' on, 'zero' on; }
+        
+        /* Browser autofill override */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px #121215 inset !important;
+            -webkit-text-fill-color: #f4f4f5 !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 antialiased h-screen overflow-hidden flex flex-col selection:bg-zinc-700 selection:text-white">
+
+    <!-- ================== 1. AUTHENTICATION OVERLAY ================== -->
+    <div id="auth-section" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center gap-2.5 mb-5 pb-4 border-b border-zinc-800">
+                <div class="h-8 w-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-950 font-bold text-xs">
+                    FC
+                </div>
+                <div>
+                    <h2 class="text-sm font-semibold text-white tracking-tight">Finance Controller</h2>
+                    <p class="text-[11px] text-zinc-400">Merchant Operations Terminal</p>
+                </div>
+            </div>
+
+            <!-- Login Container -->
+            <div id="login-container" class="space-y-3.5">
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-400 mb-1">Email address</label>
+                    <input type="email" id="login-email" value="merchant@test.com" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-[11px] font-medium text-zinc-400">Password</label>
+                    </div>
+                    <input type="password" id="login-password" value="password123" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                </div>
+                
+                <button onclick="handleLogin()" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-semibold py-2 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5 mt-2">
+                    <span>Continue to Dashboard</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+
+                <div class="pt-2 text-center">
+                    <button type="button" onclick="switchAuth(true)" class="text-[11px] text-zinc-400 hover:text-white transition">
+                        Need an account? <span class="text-zinc-200 underline font-medium">Create one</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Registration Container -->
+            <div id="reg-container" class="space-y-3.5 hidden">
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-400 mb-1">Business Name</label>
+                    <input type="text" id="reg-business" placeholder="Cobalt Axis Ltd" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-400 mb-1">Email address</label>
+                    <input type="email" id="reg-email" placeholder="merchant@business.com" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-400 mb-1">Password</label>
+                    <input type="password" id="reg-password" placeholder="••••••••" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                </div>
+
+                <button onclick="handleRegister()" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-semibold py-2 rounded-lg text-xs transition shadow-sm mt-2">
+                    Create Merchant Profile
+                </button>
+
+                <div class="pt-2 text-center">
+                    <button type="button" onclick="switchAuth(false)" class="text-[11px] text-zinc-400 hover:text-white transition">
+                        Existing account? <span class="text-zinc-200 underline font-medium">Sign in</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================== 2. ONE-SCREEN FIT OPERATIONAL CONSOLE ================== -->
+    <div id="dashboard-section" class="flex-1 flex flex-col hidden h-screen overflow-hidden">
+
+        <!-- TOP BAR -->
+        <header class="h-12 border-b border-zinc-800/80 bg-zinc-900/50 px-5 flex items-center justify-between flex-none z-30">
+            <!-- Left Branding -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="h-5 w-5 rounded bg-zinc-100 flex items-center justify-center text-zinc-950 font-extrabold text-[10px]">
+                        FC
+                    </span>
+                    <span class="text-xs font-semibold text-zinc-100 tracking-tight">Finance Controller</span>
+                </div>
+                <div class="h-3 w-px bg-zinc-800"></div>
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Razorpay Testnet
+                </span>
+            </div>
+
+            <!-- Right Controls: Payment Simulator + Account -->
+            <div class="flex items-center gap-3">
+                <!-- Quick Checkout Simulator -->
+                <div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 pl-2">
+                    <span class="text-[11px] text-zinc-400 mono mr-1">INR</span>
+                    <input type="number" id="pay-amount-input" value="8500" min="1" class="w-16 bg-transparent text-xs mono text-white focus:outline-none">
+                    <button onclick="triggerRazorpayCheckout()" class="flex items-center gap-1 bg-zinc-100 hover:bg-white text-zinc-950 px-2.5 py-1 rounded text-xs font-medium transition">
+                        <i data-lucide="credit-card" class="w-3 h-3"></i> Simulate Pay
+                    </button>
+                </div>
+
+                <div class="h-4 w-px bg-zinc-800"></div>
+
+                <div class="flex items-center gap-2">
+                    <div class="text-xs font-medium text-zinc-300" id="merchant-display-name">Apex Commerce</div>
+                    <button onclick="handleLogout()" title="Sign Out" class="text-zinc-500 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800 transition">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN DASHBOARD CONTENT -->
+        <main class="flex-1 p-4 max-w-7xl mx-auto w-full flex flex-col gap-3 min-h-0">
+
+            <!-- AUTONOMOUS OPERATIONS STRIP -->
+            <div class="bg-zinc-900/40 border border-zinc-800 rounded-lg px-4 py-2 flex items-center justify-between gap-4 flex-none">
+                <div class="flex items-center gap-5 text-xs text-zinc-400">
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                        <span>Auto-Reconciliation Engine: <strong class="text-zinc-200 font-medium">Active</strong></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
+                        <span>Risk Anomaly Threshold: <strong class="text-zinc-200 font-medium">> ₹100,000</strong></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                        <span>Recovery Retries: <strong class="text-zinc-200 font-medium">Enabled</strong></span>
+                    </div>
+                </div>
+                <button onclick="generateExecutiveBriefing()" class="flex items-center gap-1.5 bg-zinc-850 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-200 text-xs font-medium px-3 py-1 rounded-md transition">
+                    <i data-lucide="sparkles" class="w-3 h-3 text-zinc-300"></i> Executive Audit
+                </button>
+            </div>
+
+            <!-- KPI STATS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-none">
+                <!-- Volume -->
+                <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-3">
+                    <div class="text-[11px] font-medium text-zinc-400 mb-1">Gross Settled Volume</div>
+                    <div class="text-xl font-semibold text-white tracking-tight mono" id="metric-volume">₹ 0.00</div>
+                    <div class="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
+                        <i data-lucide="check-circle" class="w-2.5 h-2.5"></i> Verified via Gateway
+                    </div>
+                </div>
+
+                <!-- Match Rate -->
+                <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-3">
+                    <div class="text-[11px] font-medium text-zinc-400 mb-1">Reconciliation Match Rate</div>
+                    <div class="text-xl font-semibold text-white tracking-tight mono" id="metric-rate">0%</div>
+                    <div class="text-[10px] text-zinc-400 mt-1">Internal Ledger vs Razorpay</div>
+                </div>
+
+                <!-- Failed Payments -->
+                <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-3">
+                    <div class="text-[11px] font-medium text-zinc-400 mb-1">Failed Charges</div>
+                    <div class="text-xl font-semibold text-white tracking-tight mono" id="metric-failed">0</div>
+                    <div class="text-[10px] text-amber-400 mt-1">Recovery Engine Ready</div>
+                </div>
+
+                <!-- High Risk -->
+                <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-3">
+                    <div class="text-[11px] font-medium text-zinc-400 mb-1">High Risk Exceptions</div>
+                    <div class="text-xl font-semibold text-white tracking-tight mono" id="metric-risk">0</div>
+                    <div class="text-[10px] text-rose-400 mt-1">Automated Flags (> ₹100k)</div>
+                </div>
+            </div>
+
+            <!-- WORKSPACE (SPLIT 2:1) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
+
+                <!-- LEFT SIDE: FINANCIAL LEDGER -->
+                <div class="lg:col-span-2 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden min-h-0">
+                    <!-- Tab Switcher -->
+                    <div class="flex items-center justify-between border-b border-zinc-800/80 px-3.5 py-1.5 flex-none bg-zinc-900/80">
+                        <div class="flex items-center gap-1.5">
+                            <button id="tab-btn-tx" onclick="switchTableTab('tx')" class="text-xs font-medium px-2.5 py-1 rounded bg-zinc-800 text-white transition">
+                                Transactions & Risk
+                            </button>
+                            <button id="tab-btn-rec" onclick="switchTableTab('rec')" class="text-xs font-medium px-2.5 py-1 rounded text-zinc-400 hover:text-white transition">
+                                Settlement Reconciliation
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table 1: Transactions -->
+                    <div id="table-panel-tx" class="flex-1 overflow-y-auto min-h-0">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-zinc-900 text-zinc-400 text-[11px] font-medium border-b border-zinc-800 sticky top-0 z-20">
+                                <tr>
+                                    <th class="py-2 px-3">Payment ID</th>
+                                    <th class="py-2 px-3">Order ID</th>
+                                    <th class="py-2 px-3">Amount</th>
+                                    <th class="py-2 px-3">Status</th>
+                                    <th class="py-2 px-3">Risk Assessment</th>
+                                    <th class="py-2 px-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tx-table-body" class="divide-y divide-zinc-800/60 text-zinc-300"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Table 2: Reconciliation -->
+                    <div id="table-panel-rec" class="flex-1 overflow-y-auto min-h-0 hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-zinc-900 text-zinc-400 text-[11px] font-medium border-b border-zinc-800 sticky top-0 z-20">
+                                <tr>
+                                    <th class="py-2 px-3">Order ID</th>
+                                    <th class="py-2 px-3">Internal Record</th>
+                                    <th class="py-2 px-3">Gateway Captured</th>
+                                    <th class="py-2 px-3">Variance</th>
+                                    <th class="py-2 px-3">State</th>
+                                    <th class="py-2 px-3 text-right">Audit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rec-table-body" class="divide-y divide-zinc-800/60 text-zinc-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- RIGHT SIDE: AI FINANCE COPILOT -->
+                <div class="bg-zinc-900/50 border border-zinc-800/80 rounded-lg flex flex-col overflow-hidden min-h-0">
+                    <div class="px-3.5 py-2 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/80 flex-none">
+                        <div class="flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-emerald-400"></div>
+                            <span class="text-xs font-semibold text-white">AI Finance Copilot</span>
+                        </div>
+                        <span class="text-[10px] text-zinc-400 mono">Gemini 2.5</span>
+                    </div>
+
+                    <!-- Suggestion Chips -->
+                    <div class="px-3 py-1.5 border-b border-zinc-800/80 bg-zinc-950/40 flex items-center gap-1.5 overflow-x-auto flex-none">
+                        <button onclick="executeCopilotQuery('Analyze high-risk transactions and summarize reasons.')" class="whitespace-nowrap text-[10px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded transition">
+                            Risk Breakdown
+                        </button>
+                        <button onclick="executeCopilotQuery('What is the current reconciliation match status?')" class="whitespace-nowrap text-[10px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded transition">
+                            Reconciliation Status
+                        </button>
+                    </div>
+
+                    <!-- Chat Timeline -->
+                    <div id="copilot-chat-box" class="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs min-h-0 leading-relaxed">
+                        <div class="bg-zinc-850 border border-zinc-800 rounded-lg p-2.5 text-zinc-300">
+                            Finance Copilot online. Ask me about ledger settlement variances, payment failure causes, or transaction risk evaluations in plain English.
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="p-2 border-t border-zinc-800/80 bg-zinc-900/60 flex-none">
+                        <div class="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 rounded-md p-1 focus-within:border-zinc-600 transition">
+                            <input type="text" id="copilot-query-input" placeholder="Ask financial question..." onkeydown="if(event.key==='Enter') executeCopilotQuery()" class="flex-1 bg-transparent px-2 py-1 text-xs text-white focus:outline-none placeholder-zinc-500">
+                            <button onclick="executeCopilotQuery()" class="bg-zinc-100 hover:bg-white text-zinc-950 px-2.5 py-1 rounded text-xs font-medium transition flex items-center gap-1">
+                                <span>Send</span>
+                                <i data-lucide="arrow-up" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        lucide.createIcons();
+
+        // 1. Session Handling
+        if (localStorage.getItem("merchant_email")) {
+            showDashboard();
+        }
+
+        function switchAuth(toRegister) {
+            document.getElementById("login-container").classList.toggle("hidden", toRegister);
+            document.getElementById("reg-container").classList.toggle("hidden", !toRegister);
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-password").value;
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem("merchant_email", data.email);
+                    localStorage.setItem("merchant_name", data.businessName);
+                    showDashboard();
+                } else {
+                    alert(data.error || "Login failed");
+                }
+            } catch (err) {
+                alert("Server connection error during login.");
+            }
+        }
+
+        async function handleRegister() {
+            const businessName = document.getElementById("reg-business").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-password").value;
+
+            try {
+                const res = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password, businessName })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Registration successful! You may now sign in.");
+                    switchAuth(false);
+                } else {
+                    alert(data.error || "Registration failed");
+                }
+            } catch (err) {
+                alert("Server connection error during registration.");
+            }
+        }
+
+        function handleLogout() {
+            localStorage.clear();
+            document.getElementById("auth-section").classList.remove("hidden");
+            document.getElementById("dashboard-section").classList.add("hidden");
+        }
+
+        function showDashboard() {
+            document.getElementById("auth-section").classList.add("hidden");
+            document.getElementById("dashboard-section").classList.remove("hidden");
+            const merchantName = localStorage.getItem("merchant_name") || "Merchant";
+            document.getElementById("merchant-display-name").innerText = merchantName;
+            refreshDashboardData();
+            setTimeout(() => lucide.createIcons(), 100);
+        }
+
+        // 2. Tab Switcher
+        function switchTableTab(tab) {
+            const isTx = tab === 'tx';
+            document.getElementById("table-panel-tx").classList.toggle("hidden", !isTx);
+            document.getElementById("table-panel-rec").classList.toggle("hidden", isTx);
+            
+            document.getElementById("tab-btn-tx").className = isTx
+                ? "text-xs font-medium px-2.5 py-1 rounded bg-zinc-800 text-white transition"
+                : "text-xs font-medium px-2.5 py-1 rounded text-zinc-400 hover:text-white transition";
+
+            document.getElementById("tab-btn-rec").className = !isTx
+                ? "text-xs font-medium px-2.5 py-1 rounded bg-zinc-800 text-white transition"
+                : "text-xs font-medium px-2.5 py-1 rounded text-zinc-400 hover:text-white transition";
+        }
+
+        // 3. Razorpay Simulator Checkout
+        async function triggerRazorpayCheckout() {
+            const amount = document.getElementById("pay-amount-input").value;
+            if (!amount || amount <= 0) return alert("Please enter a valid amount.");
+
+            try {
+                const keyData = await (await fetch('/api/razorpay/key')).json();
+                const orderRes = await fetch('/api/razorpay/order', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount })
+                });
+                const orderData = await orderRes.json();
+                if (!orderRes.ok) return alert("Failed to initiate order: " + orderData.error);
+
+                const options = {
+                    "key": keyData.keyId,
+                    "amount": amount * 100,
+                    "currency": "INR",
+                    "name": localStorage.getItem("merchant_name") || "Apex Global",
+                    "description": "Gateway Test Transaction",
+                    "order_id": orderData.orderId,
+                    "handler": async function (paymentRes) {
+                        await fetch('/api/razorpay/verify', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                razorpay_order_id: paymentRes.razorpay_order_id,
+                                razorpay_payment_id: paymentRes.razorpay_payment_id,
+                                amount: amount
+                            })
+                        });
+                        refreshDashboardData();
+                    },
+                    "prefill": {
+                        "email": localStorage.getItem("merchant_email") || "test@merchant.com",
+                        "contact": "9876543210"
+                    },
+                    "theme": { "color": "#18181b" }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.open();
+            } catch (err) {
+                alert("Error launching Razorpay: " + err.message);
+            }
+        }
+
+        // 4. Data Loading
+        async function refreshDashboardData() {
+            try {
+                const summary = await (await fetch('/api/summary')).json();
+                document.getElementById('metric-volume').innerText = '₹ ' + Number(summary.totalVolume || 0).toLocaleString();
+                document.getElementById('metric-rate').innerText = summary.reconciliationMatchRate + '%';
+                document.getElementById('metric-failed').innerText = summary.failedPayments;
+                document.getElementById('metric-risk').innerText = summary.highRiskCount;
+
+                const txs = await (await fetch('/api/transactions')).json();
+                document.getElementById('tx-table-body').innerHTML = txs.map(t => `
+                    <tr class="hover:bg-zinc-800/40 transition">
+                        <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${t.transactionRef}</td>
+                        <td class="py-2 px-3 mono text-zinc-400 text-[11px]">${t.orderId}</td>
+                        <td class="py-2 px-3 font-medium text-white mono text-[11px]">₹ ${Number(t.amount).toLocaleString()}</td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                t.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            }">
+                                ${t.status}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                t.riskLevel === 'HIGH' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-zinc-800 text-zinc-400'
+                            }">
+                                ${t.riskLevel}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            ${t.status === 'FAILED' 
+                                ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="recoverTransaction(${t.id})">Recover</button>` 
+                                : `<span class="text-zinc-500 text-[10px]">Verified</span>`}
+                        </td>
+                    </tr>
+                `).join('');
+
+                const recs = await (await fetch('/api/reconciliations')).json();
+                document.getElementById('rec-table-body').innerHTML = recs.map(r => `
+                    <tr class="hover:bg-zinc-800/40 transition">
+                        <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${r.orderId}</td>
+                        <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.internalAmount).toLocaleString()}</td>
+                        <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.gatewayAmount).toLocaleString()}</td>
+                        <td class="py-2 px-3 mono text-[11px] ${r.difference > 0 ? 'text-rose-400 font-semibold' : 'text-zinc-500'}">₹ ${Number(r.difference).toLocaleString()}</td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                r.reconciliationStatus === 'MATCHED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                                r.reconciliationStatus === 'RESOLVED_MANUAL' ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }">
+                                ${r.reconciliationStatus}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            ${r.reconciliationStatus === 'UNRESOLVED' 
+                                ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="resolveDiscrepancy(${r.id})">Approve</button>` 
+                                : `<span class="text-zinc-500 text-[10px]">Audited</span>`}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function recoverTransaction(id) {
+            await fetch(`/api/recovery/retry/${id}`, { method: 'POST' });
+            refreshDashboardData();
+        }
+
+        async function resolveDiscrepancy(id) {
+            await fetch(`/api/reconciliations/${id}/resolve`, { method: 'POST' });
+            refreshDashboardData();
+        }
+
+        // 5. Copilot Chat Execution
+        async function executeCopilotQuery(promptText) {
+            const input = document.getElementById('copilot-query-input');
+            const chatBox = document.getElementById('copilot-chat-box');
+            const query = promptText || input.value.trim();
+            if (!query) return;
+
+            chatBox.innerHTML += `<div class="bg-zinc-800 text-zinc-100 rounded-lg p-2.5 max-w-[85%] ml-auto text-xs leading-relaxed">${query}</div>`;
+            if (!promptText) input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const tempId = 'temp-' + Date.now();
+            chatBox.innerHTML += `<div class="bg-zinc-850 border border-zinc-800 rounded-lg p-2.5 text-zinc-400 max-w-[85%] text-xs" id="${tempId}">Analyzing ledger records...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/copilot/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: query })
+                });
+                const data = await res.json();
+                document.getElementById(tempId).innerText = data.reply;
+            } catch (err) {
+                document.getElementById(tempId).innerText = "Error contacting Gemini Copilot.";
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function generateExecutiveBriefing() {
+            executeCopilotQuery("Please give me an executive financial briefing of our current business performance, including reconciliation accuracy, total revenue collected, and any risk anomalies requiring attention.");
+        }
+    </script>
+</body>
+</html>
