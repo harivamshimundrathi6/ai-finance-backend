@@ -147,8 +147,8 @@
                 <div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5 pl-2">
                     <span class="text-[11px] text-zinc-400 mono mr-1">INR</span>
                     <input type="number" id="pay-amount-input" value="8500" min="1" class="w-16 bg-transparent text-xs mono text-white focus:outline-none">
-                    <button onclick="triggerRazorpayCheckout()" class="flex items-center gap-1 bg-zinc-100 hover:bg-white text-zinc-950 px-2.5 py-1 rounded text-xs font-medium transition">
-                        <i data-lucide="credit-card" class="w-3 h-3"></i> Simulate Pay
+                    <button onclick="triggerRazorpayCheckout()" class="flex items-center gap-1 bg-zinc-100 hover:bg-white text-zinc-950 px-2.5 py-1 rounded text-xs font-semibold transition">
+                        <i data-lucide="credit-card" class="w-3 h-3"></i> Razorpay Test Pay
                     </button>
                 </div>
 
@@ -427,76 +427,116 @@
         }
 
         // 3. Razorpay Simulator Checkout
+        const RAZORPAY_TEST_KEY_DEFAULT = "rzp_test_TfM527OUoIvjF7";
+
         async function triggerRazorpayCheckout() {
             const amount = document.getElementById("pay-amount-input").value;
             if (!amount || amount <= 0) return alert("Please enter a valid amount.");
 
+            let keyId = RAZORPAY_TEST_KEY_DEFAULT;
+            let orderId = null;
+
+            // Try backend order generation if live backend is connected
             try {
                 const keyRes = await fetch(`${API_BASE}/api/razorpay/key`);
                 if (keyRes.ok) {
                     const keyData = await keyRes.json();
-                    const orderRes = await fetch(`${API_BASE}/api/razorpay/order`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ amount })
-                    });
-                    if (orderRes.ok) {
-                        const orderData = await orderRes.json();
-                        const options = {
-                            "key": keyData.keyId,
-                            "amount": amount * 100,
-                            "currency": "INR",
-                            "name": localStorage.getItem("merchant_name") || "Apex Global",
-                            "description": "Gateway Test Transaction",
-                            "order_id": orderData.orderId,
-                            "handler": async function (paymentRes) {
-                                await fetch(`${API_BASE}/api/razorpay/verify`, {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({
-                                        razorpay_order_id: paymentRes.razorpay_order_id,
-                                        razorpay_payment_id: paymentRes.razorpay_payment_id,
-                                        amount: amount
-                                    })
-                                });
-                                refreshDashboardData();
-                            },
-                            "prefill": {
-                                "email": localStorage.getItem("merchant_email") || "test@merchant.com",
-                                "contact": "9876543210"
-                            },
-                            "theme": { "color": "#18181b" }
-                        };
-                        const rzp = new Razorpay(options);
-                        rzp.open();
-                        return;
-                    }
+                    if (keyData.keyId) keyId = keyData.keyId;
+                }
+                const orderRes = await fetch(`${API_BASE}/api/razorpay/order`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount })
+                });
+                if (orderRes.ok) {
+                    const orderData = await orderRes.json();
+                    orderId = orderData.orderId;
                 }
             } catch (err) {
-                console.log("Live gateway offline, simulating successful test checkout.");
+                console.log("Using Razorpay Test Key direct checkout.");
             }
 
-            // Client-side simulator
-            const newRef = "TXN-" + Math.floor(1000 + Math.random() * 9000);
-            const newOrder = "ORD-" + Math.floor(1000 + Math.random() * 9000);
-            mockTransactions.unshift({
-                id: Date.now(),
-                transactionRef: newRef,
-                orderId: newOrder,
-                amount: parseFloat(amount),
-                status: 'SUCCESS',
-                riskLevel: amount > 50000 ? 'HIGH' : 'LOW'
-            });
-            mockReconciliations.unshift({
-                id: Date.now() + 1,
-                orderId: newOrder,
-                internalAmount: parseFloat(amount),
-                gatewayAmount: parseFloat(amount),
-                difference: 0,
-                reconciliationStatus: 'MATCHED'
-            });
-            alert(`✅ Payment Simulated Successfully!\nOrder: ${newOrder}\nAmount: ₹ ${Number(amount).toLocaleString()}\nStatus: Captured & Reconciled.`);
-            refreshDashboardData();
+            // Launch Real Razorpay Test Checkout Dialog
+            try {
+                const options = {
+                    "key": keyId,
+                    "amount": Math.round(amount * 100), // amount in paise
+                    "currency": "INR",
+                    "name": localStorage.getItem("merchant_name") || "AI Finance Controller",
+                    "description": "Gateway Test Payment",
+                    "handler": async function (paymentRes) {
+                        const payId = paymentRes.razorpay_payment_id || ("pay_" + Math.random().toString(36).substring(2, 9));
+                        const orderRef = paymentRes.razorpay_order_id || ("ORD-" + Math.floor(1000 + Math.random() * 9000));
+                        const txnRef = "TXN-" + payId.slice(-6).toUpperCase();
+
+                        // Try verifying with backend if running
+                        try {
+                            await fetch(`${API_BASE}/api/razorpay/verify`, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    razorpay_order_id: orderRef,
+                                    razorpay_payment_id: payId,
+                                    amount: amount
+                                })
+                            });
+                        } catch (e) {
+                            console.log("Direct ledger sync.");
+                        }
+
+                        // Add to ledger
+                        mockTransactions.unshift({
+                            id: Date.now(),
+                            transactionRef: txnRef,
+                            orderId: orderRef,
+                            amount: parseFloat(amount),
+                            status: 'SUCCESS',
+                            riskLevel: amount > 50000 ? 'HIGH' : 'LOW'
+                        });
+                        mockReconciliations.unshift({
+                            id: Date.now() + 1,
+                            orderId: orderRef,
+                            internalAmount: parseFloat(amount),
+                            gatewayAmount: parseFloat(amount),
+                            difference: 0,
+                            reconciliationStatus: 'MATCHED'
+                        });
+                        refreshDashboardData();
+                        alert(`🎉 Razorpay Test Payment Successful!\nPayment ID: ${payId}\nOrder: ${orderRef}\nAmount: ₹ ${Number(amount).toLocaleString()}\nStatus: Captured & Reconciled.`);
+                    },
+                    "prefill": {
+                        "name": localStorage.getItem("merchant_name") || "Test Merchant",
+                        "email": localStorage.getItem("merchant_email") || "merchant@test.com",
+                        "contact": "9876543210"
+                    },
+                    "notes": {
+                        "purpose": "Merchant Financial Testnet"
+                    },
+                    "theme": { "color": "#18181b" }
+                };
+
+                if (orderId) {
+                    options.order_id = orderId;
+                }
+
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (resp) {
+                    const failOrder = "ORD-" + Math.floor(1000 + Math.random() * 9000);
+                    mockTransactions.unshift({
+                        id: Date.now(),
+                        transactionRef: "TXN-FAIL",
+                        orderId: failOrder,
+                        amount: parseFloat(amount),
+                        status: 'FAILED',
+                        riskLevel: 'MEDIUM'
+                    });
+                    refreshDashboardData();
+                    alert("Razorpay Payment Cancelled / Failed: " + (resp.error ? resp.error.description : "User dismissed payment"));
+                });
+                rzp.open();
+            } catch (err) {
+                alert("Error launching Razorpay Test Checkout: " + err.message);
+            }
         }
 
         // 4. Data Loading
