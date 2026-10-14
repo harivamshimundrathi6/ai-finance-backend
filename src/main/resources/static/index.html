@@ -502,7 +502,11 @@
                 });
 
                 await refreshDashboardData();
-                alert(`✅ Test Payment of ₹ ${Number(amount).toLocaleString()} Processed!\nPayment ID: ${payId}\nOrder ID: ${orderRef}\nSaved directly into MySQL Databa            // Launch Real Razorpay Test Checkout Dialog
+                alert(`✅ Test Payment of ₹ ${Number(amount).toLocaleString()} Processed!\nPayment ID: ${payId}\nOrder ID: ${orderRef}\nSaved directly into MySQL Database.`);
+                return;
+            }
+
+            // Launch Real Razorpay Test Checkout Dialog
             try {
                 const options = {
                     "key": keyId,
@@ -727,7 +731,6 @@
 
         function generateExecutiveBriefing() {
             executeCopilotQuery("Please give me an executive financial briefing of our current business performance based on our live ledger data.");
-        }liation accuracy, total revenue collected, and any risk anomalies requiring attention.");
         }
     </script>
 </body>
