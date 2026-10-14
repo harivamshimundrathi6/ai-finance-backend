@@ -73,13 +73,13 @@
             <div id="login-container" class="space-y-3.5">
                 <div>
                     <label class="block text-[11px] font-medium text-zinc-400 mb-1">Email address</label>
-                    <input type="email" id="login-email" value="merchant@test.com" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                    <input type="email" id="login-email" placeholder="name@business.com" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
                 </div>
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="text-[11px] font-medium text-zinc-400">Password</label>
                     </div>
-                    <input type="password" id="login-password" value="password123" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+                    <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
                 </div>
                 
                 <button onclick="handleLogin()" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-semibold py-2 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5 mt-2">
@@ -322,18 +322,9 @@
 
         const API_BASE = window.API_BASE_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://ai-finance-backend-t85w.onrender.com');
 
-        // Local demo state store (fallback when live backend is disconnected)
-        let mockTransactions = [
-            { id: 101, transactionRef: 'TXN-101', orderId: 'ORD-901', amount: 1500.00, status: 'SUCCESS', riskLevel: 'LOW' },
-            { id: 102, transactionRef: 'TXN-102', orderId: 'ORD-902', amount: 125000.00, status: 'SUCCESS', riskLevel: 'HIGH' },
-            { id: 103, transactionRef: 'TXN-103', orderId: 'ORD-903', amount: 4999.00, status: 'FAILED', riskLevel: 'MEDIUM' },
-            { id: 104, transactionRef: 'TXN-104', orderId: 'ORD-904', amount: 850.00, status: 'FAILED', riskLevel: 'MEDIUM' }
-        ];
-
-        let mockReconciliations = [
-            { id: 201, orderId: 'ORD-901', internalAmount: 1500.00, gatewayAmount: 1500.00, difference: 0.00, reconciliationStatus: 'MATCHED' },
-            { id: 202, orderId: 'ORD-902', internalAmount: 125000.00, gatewayAmount: 124500.00, difference: 500.00, reconciliationStatus: 'UNRESOLVED' }
-        ];
+        // Real data store populated from live backend
+        let mockTransactions = [];
+        let mockReconciliations = [];
 
         // 1. Session Handling
         if (localStorage.getItem("merchant_email")) {
@@ -346,8 +337,13 @@
         }
 
         async function handleLogin() {
-            const email = document.getElementById("login-email").value.trim() || "merchant@test.com";
+            const email = document.getElementById("login-email").value.trim();
             const password = document.getElementById("login-password").value;
+
+            if (!email || !password) {
+                alert("Please enter both email and password.");
+                return;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -361,21 +357,25 @@
                     localStorage.setItem("merchant_name", data.businessName);
                     showDashboard();
                     return;
+                } else {
+                    const errData = await res.json().catch(() => ({}));
+                    alert("Login failed: " + (errData.error || "Invalid email or password"));
+                    return;
                 }
             } catch (err) {
-                console.log("Backend offline or unreachable, activating interactive demo mode...");
+                alert("⚠️ Cannot connect to backend server. Please verify your connection.");
             }
-
-            // Fallback to Interactive Demo Mode
-            localStorage.setItem("merchant_email", email);
-            localStorage.setItem("merchant_name", email === "merchant@test.com" ? "Apex Global Merchant" : email.split('@')[0]);
-            showDashboard();
         }
 
         async function handleRegister() {
-            const businessName = document.getElementById("reg-business").value.trim() || "Apex Merchant";
-            const email = document.getElementById("reg-email").value.trim() || "merchant@test.com";
+            const businessName = document.getElementById("reg-business").value.trim();
+            const email = document.getElementById("reg-email").value.trim();
             const password = document.getElementById("reg-password").value;
+
+            if (!businessName || !email || !password) {
+                alert("Please fill in business name, email, and password.");
+                return;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/api/auth/register`, {
@@ -393,11 +393,9 @@
                     return;
                 }
             } catch (err) {
-                console.warn("Backend offline or unreachable, activating interactive demo mode...", err);
-                alert("⚠️ Backend Offline: Could not connect to backend server. Running in Demo Mode (data is NOT saved in database).");
+                console.warn("Backend offline or unreachable", err);
+                alert("⚠️ Cannot connect to backend server. Please try again in a few moments.");
             }
-
-            switchAuth(false);
         }
 
         function handleLogout() {
@@ -504,26 +502,20 @@
                 });
 
                 await refreshDashboardData();
-                alert(`✅ Test Payment of ₹ ${Number(amount).toLocaleString()} Processed!\nPayment ID: ${payId}\nOrder ID: ${orderRef}\nSaved directly into MySQL Database!`);
-                return;
-            }
-
-            // Launch Real Razorpay Test Checkout Dialog if valid key exists
+                alert(`✅ Test Payment of ₹ ${Number(amount).toLocaleString()} Processed!\nPayment ID: ${payId}\nOrder ID: ${orderRef}\nSaved directly into MySQL Databa            // Launch Real Razorpay Test Checkout Dialog
             try {
                 const options = {
                     "key": keyId,
                     "amount": Math.round(amount * 100), // amount in paise
                     "currency": "INR",
-                    "name": localStorage.getItem("merchant_name") || "AI Finance Controller",
-                    "description": "Gateway Test Payment",
+                    "name": localStorage.getItem("merchant_name") || "COBALT AXIS",
+                    "description": "Gateway Live Transaction",
                     "handler": async function (paymentRes) {
-                        const payId = paymentRes.razorpay_payment_id || ("pay_" + Math.random().toString(36).substring(2, 9));
-                        const orderRef = paymentRes.razorpay_order_id || ("ORD-" + Math.floor(1000 + Math.random() * 9000));
-                        const txnRef = "TXN-" + payId.slice(-6).toUpperCase();
+                        const payId = paymentRes.razorpay_payment_id;
+                        const orderRef = paymentRes.razorpay_order_id || ("order_" + Math.random().toString(36).substring(2, 10));
 
-                        // Try verifying with backend if running
                         try {
-                            await fetch(`${API_BASE}/api/razorpay/verify`, {
+                            const vRes = await fetch(`${API_BASE}/api/razorpay/verify`, {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({
@@ -532,37 +524,21 @@
                                     amount: amount
                                 })
                             });
+                            if (vRes.ok) {
+                                alert(`🎉 Payment Successful!\nPayment ID: ${payId}\nOrder: ${orderRef}\nAmount: ₹ ${Number(amount).toLocaleString()}\nSaved in database.`);
+                            }
                         } catch (e) {
-                            console.log("Direct ledger sync.");
+                            console.error("Error verifying payment", e);
                         }
-
-                        // Add to ledger
-                        mockTransactions.unshift({
-                            id: Date.now(),
-                            transactionRef: txnRef,
-                            orderId: orderRef,
-                            amount: parseFloat(amount),
-                            status: 'SUCCESS',
-                            riskLevel: amount > 50000 ? 'HIGH' : 'LOW'
-                        });
-                        mockReconciliations.unshift({
-                            id: Date.now() + 1,
-                            orderId: orderRef,
-                            internalAmount: parseFloat(amount),
-                            gatewayAmount: parseFloat(amount),
-                            difference: 0,
-                            reconciliationStatus: 'MATCHED'
-                        });
-                        refreshDashboardData();
-                        alert(`🎉 Razorpay Test Payment Successful!\nPayment ID: ${payId}\nOrder: ${orderRef}\nAmount: ₹ ${Number(amount).toLocaleString()}\nStatus: Captured & Reconciled.`);
+                        await refreshDashboardData();
                     },
                     "prefill": {
-                        "name": localStorage.getItem("merchant_name") || "Test Merchant",
-                        "email": localStorage.getItem("merchant_email") || "merchant@test.com",
-                        "contact": "9876543210"
+                        "name": localStorage.getItem("merchant_name") || "Merchant",
+                        "email": localStorage.getItem("merchant_email") || "",
+                        "contact": ""
                     },
                     "notes": {
-                        "purpose": "Merchant Financial Testnet"
+                        "purpose": "Merchant Financial Transaction"
                     },
                     "theme": { "color": "#18181b" }
                 };
@@ -573,141 +549,144 @@
 
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (resp) {
-                    const failOrder = "ORD-" + Math.floor(1000 + Math.random() * 9000);
-                    mockTransactions.unshift({
-                        id: Date.now(),
-                        transactionRef: "TXN-FAIL",
-                        orderId: failOrder,
-                        amount: parseFloat(amount),
-                        status: 'FAILED',
-                        riskLevel: 'MEDIUM'
-                    });
-                    refreshDashboardData();
                     alert("Razorpay Payment Cancelled / Failed: " + (resp.error ? resp.error.description : "User dismissed payment"));
                 });
                 rzp.open();
             } catch (err) {
-                alert("Error launching Razorpay Test Checkout: " + err.message);
+                alert("Error launching Razorpay Checkout: " + err.message);
             }
         }
 
-        // 4. Data Loading
+        // 4. Data Loading - 100% Real Database Driven
         async function refreshDashboardData() {
-            let txs = mockTransactions;
-            let recs = mockReconciliations;
-            let summary = null;
+            let txs = [];
+            let recs = [];
+            let summary = {
+                totalVolume: 0,
+                totalTransactions: 0,
+                failedPayments: 0,
+                highRiskCount: 0,
+                reconciliationMatchRate: 100
+            };
 
             try {
-                const sRes = await fetch(`${API_BASE}/api/summary`);
-                const tRes = await fetch(`${API_BASE}/api/transactions`);
-                const rRes = await fetch(`${API_BASE}/api/reconciliations`);
-                if (sRes.ok && tRes.ok && rRes.ok) {
-                    summary = await sRes.json();
-                    txs = await tRes.json();
-                    recs = await rRes.json();
-                }
-            } catch (err) {
-                console.log("Using client ledger simulation.");
-            }
+                const [sRes, tRes, rRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/summary`),
+                    fetch(`${API_BASE}/api/transactions`),
+                    fetch(`${API_BASE}/api/reconciliations`)
+                ]);
 
-            if (!summary) {
-                const totalVol = txs.filter(t => t.status === 'SUCCESS').reduce((acc, t) => acc + parseFloat(t.amount || 0), 0);
-                const failedCount = txs.filter(t => t.status === 'FAILED').length;
-                const highRiskCount = txs.filter(t => t.riskLevel === 'HIGH').length;
-                const matchedCount = recs.filter(r => r.reconciliationStatus === 'MATCHED').length;
-                const matchRate = recs.length > 0 ? ((matchedCount / recs.length) * 100).toFixed(1) : 100;
-                summary = {
-                    totalVolume: totalVol,
-                    failedPayments: failedCount,
-                    highRiskCount: highRiskCount,
-                    reconciliationMatchRate: matchRate
-                };
+                if (sRes.ok) summary = await sRes.json();
+                if (tRes.ok) txs = await tRes.json();
+                if (rRes.ok) recs = await rRes.json();
+            } catch (err) {
+                console.error("Error fetching live database records:", err);
             }
 
             document.getElementById('metric-volume').innerText = '₹ ' + Number(summary.totalVolume || 0).toLocaleString();
-            document.getElementById('metric-rate').innerText = summary.reconciliationMatchRate + '%';
-            document.getElementById('metric-failed').innerText = summary.failedPayments;
-            document.getElementById('metric-risk').innerText = summary.highRiskCount;
+            document.getElementById('metric-rate').innerText = (summary.reconciliationMatchRate != null ? summary.reconciliationMatchRate : 100) + '%';
+            document.getElementById('metric-failed').innerText = summary.failedPayments || 0;
+            document.getElementById('metric-risk').innerText = summary.highRiskCount || 0;
 
-            document.getElementById('tx-table-body').innerHTML = txs.map(t => `
-                <tr class="hover:bg-zinc-800/40 transition">
-                    <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${t.transactionRef}</td>
-                    <td class="py-2 px-3 mono text-zinc-400 text-[11px]">${t.orderId}</td>
-                    <td class="py-2 px-3 font-medium text-white mono text-[11px]">₹ ${Number(t.amount).toLocaleString()}</td>
-                    <td class="py-2 px-3">
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            t.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }">
-                            ${t.status}
-                        </span>
-                    </td>
-                    <td class="py-2 px-3">
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            t.riskLevel === 'HIGH' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-zinc-800 text-zinc-400'
-                        }">
-                            ${t.riskLevel}
-                        </span>
-                    </td>
-                    <td class="py-2 px-3 text-right">
-                        ${t.status === 'FAILED' 
-                            ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="recoverTransaction(${t.id})">Recover</button>` 
-                            : `<span class="text-zinc-500 text-[10px]">Verified</span>`}
-                    </td>
-                </tr>
-            `).join('');
+            if (txs.length === 0) {
+                document.getElementById('tx-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-zinc-500 text-xs">
+                            No transactions recorded yet. Click <strong>Razorpay Test Pay</strong> in the top navbar to record your first payment.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                document.getElementById('tx-table-body').innerHTML = txs.map(t => `
+                    <tr class="hover:bg-zinc-800/40 transition">
+                        <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${t.transactionRef || t.id}</td>
+                        <td class="py-2 px-3 mono text-zinc-400 text-[11px]">${t.orderId || '-'}</td>
+                        <td class="py-2 px-3 font-medium text-white mono text-[11px]">₹ ${Number(t.amount).toLocaleString()}</td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                t.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            }">
+                                ${t.status}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                t.riskLevel === 'HIGH' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-zinc-800 text-zinc-400'
+                            }">
+                                ${t.riskLevel || 'LOW'}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            ${t.status === 'FAILED' 
+                                ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="recoverTransaction(${t.id})">Recover</button>` 
+                                : `<span class="text-zinc-500 text-[10px]">Verified</span>`}
+                        </td>
+                    </tr>
+                `).join('');
+            }
 
-            document.getElementById('rec-table-body').innerHTML = recs.map(r => `
-                <tr class="hover:bg-zinc-800/40 transition">
-                    <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${r.orderId}</td>
-                    <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.internalAmount).toLocaleString()}</td>
-                    <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.gatewayAmount).toLocaleString()}</td>
-                    <td class="py-2 px-3 mono text-[11px] ${r.difference > 0 ? 'text-rose-400 font-semibold' : 'text-zinc-500'}">₹ ${Number(r.difference).toLocaleString()}</td>
-                    <td class="py-2 px-3">
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            r.reconciliationStatus === 'MATCHED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                            r.reconciliationStatus === 'RESOLVED_MANUAL' ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        }">
-                            ${r.reconciliationStatus}
-                        </span>
-                    </td>
-                    <td class="py-2 px-3 text-right">
-                        ${r.reconciliationStatus === 'UNRESOLVED' 
-                            ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="resolveDiscrepancy(${r.id})">Approve</button>` 
-                            : `<span class="text-zinc-500 text-[10px]">Audited</span>`}
-                    </td>
-                </tr>
-            `).join('');
+            if (recs.length === 0) {
+                document.getElementById('rec-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-zinc-500 text-xs">
+                            No reconciliation records found. Ledger is clean.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                document.getElementById('rec-table-body').innerHTML = recs.map(r => `
+                    <tr class="hover:bg-zinc-800/40 transition">
+                        <td class="py-2 px-3 mono text-zinc-300 text-[11px]">${r.orderId}</td>
+                        <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.internalAmount).toLocaleString()}</td>
+                        <td class="py-2 px-3 mono text-[11px]">₹ ${Number(r.gatewayAmount).toLocaleString()}</td>
+                        <td class="py-2 px-3 mono text-[11px] ${r.difference > 0 ? 'text-rose-400 font-semibold' : 'text-zinc-500'}">₹ ${Number(r.difference).toLocaleString()}</td>
+                        <td class="py-2 px-3">
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                r.reconciliationStatus === 'MATCHED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                                r.reconciliationStatus === 'RESOLVED_MANUAL' ? 'bg-zinc-800 text-zinc-300 border border-zinc-700' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }">
+                                ${r.reconciliationStatus}
+                            </span>
+                        </td>
+                        <td class="py-2 px-3 text-right">
+                            ${r.reconciliationStatus === 'UNRESOLVED' 
+                                ? `<button class="bg-zinc-100 hover:bg-white text-zinc-950 font-semibold px-2 py-0.5 rounded text-[10px] transition" onclick="resolveDiscrepancy(${r.id})">Approve</button>` 
+                                : `<span class="text-zinc-500 text-[10px]">Audited</span>`}
+                        </td>
+                    </tr>
+                `).join('');
+            }
         }
 
         async function recoverTransaction(id) {
             try {
-                await fetch(`${API_BASE}/api/recovery/retry/${id}`, { method: 'POST' });
+                const res = await fetch(`${API_BASE}/api/recovery/retry/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    alert(`Payment Recovery Triggered!\nTransaction ID ${id} re-dispatched and marked SUCCESS.`);
+                    await refreshDashboardData();
+                } else {
+                    alert("Recovery failed for transaction ID " + id);
+                }
             } catch (err) {
-                console.log("Simulating payment retry...");
+                alert("Error connecting to server for payment recovery.");
             }
-            const found = mockTransactions.find(t => t.id === id);
-            if (found) {
-                found.status = 'SUCCESS';
-            }
-            alert(`Payment Recovery Triggered!\nTransaction ID ${id} re-dispatched and marked SUCCESS.`);
-            refreshDashboardData();
         }
 
         async function resolveDiscrepancy(id) {
             try {
-                await fetch(`${API_BASE}/api/reconciliations/${id}/resolve`, { method: 'POST' });
+                const res = await fetch(`${API_BASE}/api/reconciliations/${id}/resolve`, { method: 'POST' });
+                if (res.ok) {
+                    alert(`Discrepancy Resolved!\nReconciliation record approved with manual auditor override.`);
+                    await refreshDashboardData();
+                } else {
+                    alert("Failed to resolve discrepancy for ID " + id);
+                }
             } catch (err) {
-                console.log("Simulating manual discrepancy resolution...");
+                alert("Error connecting to server to resolve discrepancy.");
             }
-            const found = mockReconciliations.find(r => r.id === id);
-            if (found) {
-                found.reconciliationStatus = 'RESOLVED_MANUAL';
-            }
-            alert(`Discrepancy Resolved!\nReconciliation record approved with manual auditor override.`);
-            refreshDashboardData();
         }
 
-        // 5. Copilot Chat Execution
+        // 5. Copilot Chat Execution - Real Gemini AI
         async function executeCopilotQuery(promptText) {
             const input = document.getElementById('copilot-query-input');
             const chatBox = document.getElementById('copilot-chat-box');
@@ -719,7 +698,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             const tempId = 'temp-' + Date.now();
-            chatBox.innerHTML += `<div class="bg-zinc-850 border border-zinc-800 rounded-lg p-2.5 text-zinc-400 max-w-[85%] text-xs" id="${tempId}">Analyzing ledger records...</div>`;
+            chatBox.innerHTML += `<div class="bg-zinc-850 border border-zinc-800 rounded-lg p-2.5 text-zinc-400 max-w-[85%] text-xs" id="${tempId}">Analyzing live ledger records...</div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
@@ -733,31 +712,18 @@
                     document.getElementById(tempId).innerText = data.reply;
                     chatBox.scrollTop = chatBox.scrollHeight;
                     return;
+                } else {
+                    document.getElementById(tempId).innerText = "Finance Copilot could not generate response at this time. Please check your Gemini API key.";
                 }
             } catch (err) {
-                console.log("Using Gemini Copilot interactive simulation.");
+                document.getElementById(tempId).innerText = "Unable to reach Finance Copilot backend service.";
             }
-
-            // Intelligent Gemini AI Copilot Simulated Briefing
-            setTimeout(() => {
-                let reply = "";
-                const lower = query.toLowerCase();
-                if (lower.includes("briefing") || lower.includes("performance") || lower.includes("revenue")) {
-                    reply = "📊 Executive Financial Briefing:\n• Total Processed Volume: ₹ 1,31,500 across active ledger channels.\n• Reconciliation Health: 94.2% match accuracy rate.\n• Discrepancy Flag: 1 unresolved variance of ₹500 on order ORD-902 under audit.\n• Risk Alerts: 1 high-velocity ticket (ORD-902) detected and flagged for review.\n• Recovery Queue: 2 abandoned payments monitored for re-dispatch.";
-                } else if (lower.includes("risk") || lower.includes("anomaly")) {
-                    reply = "⚠️ Risk Audit: 1 transaction (ORD-902, ₹ 1,25,000) exceeded normal threshold and is flagged as HIGH risk. Automated 3D-secure challenge verified.";
-                } else if (lower.includes("reconcil") || lower.includes("discrepancy")) {
-                    reply = "🔍 Reconciliation Report: Internal order ORD-902 recorded ₹125,000, while gateway settled ₹124,500. Difference of ₹500 is pending manual auditor sign-off.";
-                } else {
-                    reply = `🤖 Gemini Copilot: Analyzed ledger data related to "${query}". Financial parameters are balanced, liquidity match is within 99.4% confidence interval, and audit trails are up-to-date.`;
-                }
-                document.getElementById(tempId).innerText = reply;
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, 600);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         function generateExecutiveBriefing() {
-            executeCopilotQuery("Please give me an executive financial briefing of our current business performance, including reconciliation accuracy, total revenue collected, and any risk anomalies requiring attention.");
+            executeCopilotQuery("Please give me an executive financial briefing of our current business performance based on our live ledger data.");
+        }liation accuracy, total revenue collected, and any risk anomalies requiring attention.");
         }
     </script>
 </body>
