@@ -713,7 +713,10 @@
                 const res = await fetch(`${API_BASE}/api/copilot/chat`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ message: query })
+                    body: JSON.stringify({ 
+                        message: query,
+                        merchantEmail: localStorage.getItem("merchant_email") || ""
+                    })
                 });
                 if (res.ok) {
                     const data = await res.json();

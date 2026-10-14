@@ -162,7 +162,8 @@ public class ApiController {
     @PostMapping("/copilot/chat")
     public Map<String, String> chatWithCopilot(@RequestBody Map<String, String> payload) {
         String message = payload.get("message");
-        String reply = copilotService.askCopilot(message);
+        String merchantEmail = payload.get("merchantEmail");
+        String reply = copilotService.askCopilot(message, merchantEmail);
         return Map.of("reply", reply);
     }
 }

@@ -29,8 +29,12 @@ public class GeminiCopilotService {
     }
 
     public String askCopilot(String userPrompt) {
-        Map<String, Object> summary = financeService.getFinancialSummary();
-        List<TransactionRecord> txs = financeService.getAllTransactions();
+        return askCopilot(userPrompt, null);
+    }
+
+    public String askCopilot(String userPrompt, String merchantEmail) {
+        Map<String, Object> summary = financeService.getFinancialSummary(merchantEmail);
+        List<TransactionRecord> txs = financeService.getTransactions(merchantEmail);
 
         // Convert transactions into a plain textual ledger
         String transactionDetails = txs.stream()
