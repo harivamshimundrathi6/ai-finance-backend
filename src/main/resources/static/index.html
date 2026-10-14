@@ -320,7 +320,7 @@
     <script>
         lucide.createIcons();
 
-        const API_BASE = window.API_BASE_URL || '';
+        const API_BASE = window.API_BASE_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://ai-finance-backend-t85w.onrender.com');
 
         // Local demo state store (fallback when live backend is disconnected)
         let mockTransactions = [
