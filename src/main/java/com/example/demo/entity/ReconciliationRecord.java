@@ -17,18 +17,20 @@ public class ReconciliationRecord {
     private BigDecimal gatewayAmount;
     private BigDecimal difference;
     private String reconciliationStatus;
+    private String merchantEmail;
     private LocalDateTime checkedAt;
 
     public ReconciliationRecord() {
         this.checkedAt = LocalDateTime.now();
     }
 
-    public ReconciliationRecord(String orderId, BigDecimal internalAmount, BigDecimal gatewayAmount, BigDecimal difference, String reconciliationStatus) {
+    public ReconciliationRecord(String orderId, BigDecimal internalAmount, BigDecimal gatewayAmount, BigDecimal difference, String reconciliationStatus, String merchantEmail) {
         this.orderId = orderId;
         this.internalAmount = internalAmount;
         this.gatewayAmount = gatewayAmount;
         this.difference = difference;
         this.reconciliationStatus = reconciliationStatus;
+        this.merchantEmail = merchantEmail;
         this.checkedAt = LocalDateTime.now();
     }
 
@@ -43,5 +45,7 @@ public class ReconciliationRecord {
     public void setDifference(BigDecimal difference) { this.difference = difference; }
     public String getReconciliationStatus() { return reconciliationStatus; }
     public void setReconciliationStatus(String reconciliationStatus) { this.reconciliationStatus = reconciliationStatus; }
+    public String getMerchantEmail() { return merchantEmail; }
+    public void setMerchantEmail(String merchantEmail) { this.merchantEmail = merchantEmail; }
     public LocalDateTime getCheckedAt() { return checkedAt; }
 }

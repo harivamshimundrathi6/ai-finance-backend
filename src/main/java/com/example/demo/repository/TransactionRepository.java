@@ -7,6 +7,8 @@ import java.util.List;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<TransactionRecord, Long> {
+    List<TransactionRecord> findByMerchantEmailOrderByCreatedAtDesc(String merchantEmail);
+    List<TransactionRecord> findByMerchantEmail(String merchantEmail);
     List<TransactionRecord> findByStatus(String status);
     List<TransactionRecord> findByRiskLevel(String riskLevel);
 }

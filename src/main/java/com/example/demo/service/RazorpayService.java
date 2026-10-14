@@ -40,7 +40,7 @@ public class RazorpayService {
         return order.get("id").toString();
     }
 
-    public void processPaymentSuccess(String razorpayOrderId, String paymentId, BigDecimal amount) {
+    public void processPaymentSuccess(String razorpayOrderId, String paymentId, BigDecimal amount, String merchantEmail) {
         TransactionRecord tx = new TransactionRecord(
             paymentId, 
             razorpayOrderId, 
@@ -49,9 +49,10 @@ public class RazorpayService {
             "SUCCESS", 
             null, 
             "LOW", 
-            "Direct Payment captured via Razorpay Gateway"
+            "Direct Payment captured via Razorpay Gateway",
+            merchantEmail
         );
         financeService.createTransaction(tx);
-        financeService.reconcile(razorpayOrderId, amount, amount);
+        financeService.reconcile(razorpayOrderId, amount, amount, merchantEmail);
     }
 }

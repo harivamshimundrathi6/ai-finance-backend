@@ -20,13 +20,14 @@ public class TransactionRecord {
     private String failureReason;
     private String riskLevel;
     private String riskReason;
+    private String merchantEmail;
     private LocalDateTime createdAt;
 
     public TransactionRecord() {
         this.createdAt = LocalDateTime.now();
     }
 
-    public TransactionRecord(String transactionRef, String orderId, BigDecimal amount, String currency, String status, String failureReason, String riskLevel, String riskReason) {
+    public TransactionRecord(String transactionRef, String orderId, BigDecimal amount, String currency, String status, String failureReason, String riskLevel, String riskReason, String merchantEmail) {
         this.transactionRef = transactionRef;
         this.orderId = orderId;
         this.amount = amount;
@@ -35,6 +36,7 @@ public class TransactionRecord {
         this.failureReason = failureReason;
         this.riskLevel = riskLevel;
         this.riskReason = riskReason;
+        this.merchantEmail = merchantEmail;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -55,5 +57,7 @@ public class TransactionRecord {
     public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
     public String getRiskReason() { return riskReason; }
     public void setRiskReason(String riskReason) { this.riskReason = riskReason; }
+    public String getMerchantEmail() { return merchantEmail; }
+    public void setMerchantEmail(String merchantEmail) { this.merchantEmail = merchantEmail; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

@@ -41,13 +41,27 @@ public class FinanceService {
         return transactionRepo.findAll();
     }
 
-    public ReconciliationRecord reconcile(String orderId, BigDecimal internalAmount, BigDecimal gatewayAmount) {
+    public List<TransactionRecord> getTransactions(String merchantEmail) {
+        if (merchantEmail != null && !merchantEmail.trim().isEmpty()) {
+            return transactionRepo.findByMerchantEmailOrderByCreatedAtDesc(merchantEmail.trim());
+        }
+        return transactionRepo.findAll();
+    }
+
+    public ReconciliationRecord reconcile(String orderId, BigDecimal internalAmount, BigDecimal gatewayAmount, String merchantEmail) {
         BigDecimal diff = internalAmount.subtract(gatewayAmount).abs();
         String status = (diff.compareTo(BigDecimal.ZERO) == 0) ? "MATCHED" : "UNRESOLVED";
-        return reconciliationRepo.save(new ReconciliationRecord(orderId, internalAmount, gatewayAmount, diff, status));
+        return reconciliationRepo.save(new ReconciliationRecord(orderId, internalAmount, gatewayAmount, diff, status, merchantEmail));
     }
 
     public List<ReconciliationRecord> getAllReconciliations() {
+        return reconciliationRepo.findAll();
+    }
+
+    public List<ReconciliationRecord> getReconciliations(String merchantEmail) {
+        if (merchantEmail != null && !merchantEmail.trim().isEmpty()) {
+            return reconciliationRepo.findByMerchantEmailOrderByCheckedAtDesc(merchantEmail.trim());
+        }
         return reconciliationRepo.findAll();
     }
 
@@ -66,7 +80,6 @@ public class FinanceService {
         Optional<TransactionRecord> txOpt = transactionRepo.findById(transactionId);
         if (txOpt.isPresent()) {
             TransactionRecord tx = txOpt.get();
-            // Simulate recovery retry success
             tx.setStatus("SUCCESS");
             tx.setRiskLevel("LOW");
             tx.setRiskReason("Recovered via Automated Smart Retry Engine");
@@ -78,8 +91,17 @@ public class FinanceService {
     }
 
     public Map<String, Object> getFinancialSummary() {
-        List<TransactionRecord> all = transactionRepo.findAll();
-        List<ReconciliationRecord> recs = reconciliationRepo.findAll();
+        return getFinancialSummary(null);
+    }
+
+    public Map<String, Object> getFinancialSummary(String merchantEmail) {
+        List<TransactionRecord> all = (merchantEmail != null && !merchantEmail.trim().isEmpty())
+                ? transactionRepo.findByMerchantEmail(merchantEmail.trim())
+                : transactionRepo.findAll();
+
+        List<ReconciliationRecord> recs = (merchantEmail != null && !merchantEmail.trim().isEmpty())
+                ? reconciliationRepo.findByMerchantEmail(merchantEmail.trim())
+                : reconciliationRepo.findAll();
 
         BigDecimal totalVolume = all.stream()
                 .filter(t -> "SUCCESS".equalsIgnoreCase(t.getStatus()))

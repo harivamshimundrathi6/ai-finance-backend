@@ -521,7 +521,8 @@
                                 body: JSON.stringify({
                                     razorpay_order_id: orderRef,
                                     razorpay_payment_id: payId,
-                                    amount: amount
+                                    amount: amount,
+                                    merchantEmail: localStorage.getItem("merchant_email") || ""
                                 })
                             });
                             if (vRes.ok) {
@@ -569,11 +570,14 @@
                 reconciliationMatchRate: 100
             };
 
+            const merchantEmail = localStorage.getItem("merchant_email") || "";
+            const emailParam = merchantEmail ? `?merchantEmail=${encodeURIComponent(merchantEmail)}` : "";
+
             try {
                 const [sRes, tRes, rRes] = await Promise.all([
-                    fetch(`${API_BASE}/api/summary`),
-                    fetch(`${API_BASE}/api/transactions`),
-                    fetch(`${API_BASE}/api/reconciliations`)
+                    fetch(`${API_BASE}/api/summary${emailParam}`),
+                    fetch(`${API_BASE}/api/transactions${emailParam}`),
+                    fetch(`${API_BASE}/api/reconciliations${emailParam}`)
                 ]);
 
                 if (sRes.ok) summary = await sRes.json();

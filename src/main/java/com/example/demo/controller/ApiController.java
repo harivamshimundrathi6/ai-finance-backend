@@ -102,8 +102,9 @@ public class ApiController {
             String razorpayOrderId = body.get("razorpay_order_id").toString();
             String paymentId = body.get("razorpay_payment_id").toString();
             BigDecimal amount = new BigDecimal(body.get("amount").toString());
+            String merchantEmail = body.get("merchantEmail") != null ? body.get("merchantEmail").toString() : null;
 
-            razorpayService.processPaymentSuccess(razorpayOrderId, paymentId, amount);
+            razorpayService.processPaymentSuccess(razorpayOrderId, paymentId, amount, merchantEmail);
             return ResponseEntity.ok(Map.of("status", "SUCCESS"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -115,13 +116,13 @@ public class ApiController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/summary")
-    public Map<String, Object> getSummary() {
-        return financeService.getFinancialSummary();
+    public Map<String, Object> getSummary(@RequestParam(required = false) String merchantEmail) {
+        return financeService.getFinancialSummary(merchantEmail);
     }
 
     @GetMapping("/transactions")
-    public List<TransactionRecord> getTransactions() {
-        return financeService.getAllTransactions();
+    public List<TransactionRecord> getTransactions(@RequestParam(required = false) String merchantEmail) {
+        return financeService.getTransactions(merchantEmail);
     }
 
     @PostMapping("/transactions")
@@ -134,8 +135,8 @@ public class ApiController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/reconciliations")
-    public List<ReconciliationRecord> getReconciliations() {
-        return financeService.getAllReconciliations();
+    public List<ReconciliationRecord> getReconciliations(@RequestParam(required = false) String merchantEmail) {
+        return financeService.getReconciliations(merchantEmail);
     }
 
     @PostMapping("/reconciliations/{id}/resolve")
